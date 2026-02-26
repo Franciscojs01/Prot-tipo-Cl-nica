@@ -1,13 +1,30 @@
 <!doctype html>
-<html lang="en">
+<html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>prototipoclinica</title>
+    <title>Espaço Reabilita — Prototipo</title>
+    <!-- Tailwind via CDN with custom palette: black & green theme -->
+    <script>
+      window.tailwind = {
+        config: {
+          theme: {
+            extend: {
+              colors: {
+                'medical-black': '#0b0f0d',
+                'medical-green': '#10b981',
+                'medical-muted': '#eafaf1',
+                'medical-ink': '#02251f'
+              }
+            }
+          }
+        }
+      }
+    </script>
+    <script src="https://cdn.tailwindcss.com"></script>
   </head>
-  <body>
-    <div id="app"></div>
-    <script type="module" src="/src/main.js"></script>
+  <body class="bg-medical-black text-medical-muted min-h-screen">
+    <div id="root" class="min-h-screen"></div>
+    <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
