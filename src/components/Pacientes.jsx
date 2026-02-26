@@ -10,6 +10,12 @@ export default function Pacientes(){
   const [serviceValue, setServiceValue] = useState('')
 
   const services = api.getServices ? api.getServices() : []
+  const employees = api.state.employees || []
+
+  // Filtrar apenas funcionários que atendem pacientes (excluir recepção, administrativo)
+  const clinicalEmployees = employees.filter(e =>
+    ['fisioterapeuta', 'medico', 'terapeuta', 'psicologo', 'enfermeiro', 'outro'].includes(e.role)
+  )
 
   function openForm(patient){ setEditing(patient || null); setMode('form') }
   function closeForm(){ setMode('list'); setEditing(null) }
@@ -21,9 +27,33 @@ export default function Pacientes(){
   }
   function closeAddService(){ setMode('list'); setSelectedPatient(null); setServiceValue('') }
 
+  // Função para vincular paciente ao funcionário
+  function linkPatientToEmployee(patientId, employeeId){
+    if (!employeeId) return
+    const emp = employees.find(e => e.id === employeeId)
+    if (!emp) return
+    const currentPatients = emp.patients || []
+    if (currentPatients.includes(patientId)) return
+    api.updateEmployee(employeeId, { patients: [...currentPatients, patientId] })
+  }
+
+  // Função para desvincular paciente do funcionário
+  function unlinkPatientFromEmployee(patientId, employeeId){
+    const emp = employees.find(e => e.id === employeeId)
+    if (!emp) return
+    const currentPatients = emp.patients || []
+    api.updateEmployee(employeeId, { patients: currentPatients.filter(id => id !== patientId) })
+  }
+
+  // Encontrar funcionários vinculados a um paciente
+  function getLinkedEmployees(patientId){
+    return employees.filter(e => (e.patients || []).includes(patientId))
+  }
+
   function handleSubmit(e){
     e.preventDefault()
     const fd = new FormData(e.target)
+    const assignedEmployeeId = fd.get('assignedEmployee')
     const data = {
       fullName: fd.get('fullName')?.trim(),
       phone: fd.get('phone')?.trim(),
@@ -32,10 +62,21 @@ export default function Pacientes(){
     }
     if (editing) {
       api.updatePatient(editing.id, data)
+      // Se selecionou um funcionário, vincular
+      if (assignedEmployeeId) {
+        linkPatientToEmployee(editing.id, assignedEmployeeId)
+      }
     } else {
       const id = `p_${Date.now()}`
       const now = new Date().toISOString()
       api.addPatient({ id, createdAt: now, updatedAt: now, ...data })
+      // Se selecionou um funcionário, vincular o novo paciente
+      if (assignedEmployeeId) {
+        // Precisamos aguardar o estado atualizar, então usamos setTimeout
+        setTimeout(() => {
+          linkPatientToEmployee(id, assignedEmployeeId)
+        }, 100)
+      }
     }
     closeForm()
   }
@@ -166,6 +207,8 @@ export default function Pacientes(){
       {api.state.patients.length ? api.state.patients.map(p => {
         const patientAppts = api.state.appointments.filter(a => a.patientId === p.id)
         const total = patientAppts.reduce((s,a) => s + (a.value||0), 0)
+        const linkedEmps = getLinkedEmployees(p.id)
+
         return (
           <div key={p.id} className="card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -176,6 +219,11 @@ export default function Pacientes(){
                 <div>
                   <div style={{ fontWeight: 600, fontSize: '1.1rem', color: '#1a1a1a' }}>{p.fullName}</div>
                   <div style={{ fontSize: '0.875rem', color: '#64748b', marginTop: '0.25rem' }}>{p.phone} • {p.email}</div>
+                  {linkedEmps.length > 0 && (
+                    <div style={{ fontSize: '0.75rem', color: '#065f46', marginTop: '0.25rem' }}>
+                      👨‍⚕️ {linkedEmps.map(e => e.name).join(', ')}
+                    </div>
+                  )}
                 </div>
               </div>
               <div style={{ textAlign: 'right' }}>

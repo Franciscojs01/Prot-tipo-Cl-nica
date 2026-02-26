@@ -110,8 +110,11 @@ export default function StateProvider({ children }){
     save(STORAGE_KEYS.SETTINGS, s.settings)
     save(STORAGE_KEYS.USERS, s.users)
     save(STORAGE_KEYS.SERVICES, s.services)
+    save(STORAGE_KEYS.EMPLOYEES, s.employees)
+    save(STORAGE_KEYS.MEDICAL_RECORDS, s.medicalRecords)
+    save(STORAGE_KEYS.PAYROLL, s.payroll)
     window.userRole = s.userRole
-  }, [s.patients, s.appointments, s.settings, s.users, s.services, s.userRole])
+  }, [s.patients, s.appointments, s.settings, s.users, s.services, s.employees, s.medicalRecords, s.payroll, s.userRole])
 
   const api = {
     state: s,
@@ -141,7 +144,22 @@ export default function StateProvider({ children }){
     logout: () => { dispatch({ type: 'setCurrentUser', user: null }); dispatch({ type: 'setRole', role: 'guest' }) },
     getServices: () => s.services,
     addService: (svc) => dispatch({ type: 'addService', service: svc }),
-    setServices: (services) => dispatch({ type: 'setServices', services })
+    setServices: (services) => dispatch({ type: 'setServices', services }),
+    // Employees API
+    addEmployee: (emp) => dispatch({ type: 'addEmployee', employee: emp }),
+    updateEmployee: (id, changes) => dispatch({ type: 'updateEmployee', id, changes }),
+    removeEmployee: (id) => dispatch({ type: 'removeEmployee', id }),
+    getEmployees: () => s.employees,
+    // Medical Records API
+    addMedicalRecord: (record) => dispatch({ type: 'addMedicalRecord', record }),
+    updateMedicalRecord: (id, changes) => dispatch({ type: 'updateMedicalRecord', id, changes }),
+    removeMedicalRecord: (id) => dispatch({ type: 'removeMedicalRecord', id }),
+    getMedicalRecords: () => s.medicalRecords,
+    // Payroll API
+    addPayroll: (entry) => dispatch({ type: 'addPayroll', entry }),
+    updatePayroll: (id, changes) => dispatch({ type: 'updatePayroll', id, changes }),
+    removePayroll: (id) => dispatch({ type: 'removePayroll', id }),
+    getPayroll: () => s.payroll
   }
 
   return <StateContext.Provider value={api}>{children}</StateContext.Provider>

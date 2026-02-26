@@ -10,6 +10,10 @@ import Register from './components/Register.jsx'
 import Relatorios from './components/Relatorios.jsx'
 import Usuarios from './components/Usuarios.jsx'
 import Servicos from './components/Servicos.jsx'
+import Funcionarios from './components/Funcionarios.jsx'
+import Prontuarios from './components/Prontuarios.jsx'
+import FolhaPagamento from './components/FolhaPagamento.jsx'
+import PerfilFuncionario from './components/PerfilFuncionario.jsx'
 
 function AppShell(){
   const [view, setView] = useState(() => window.location.hash.replace('#','') || 'agenda')
@@ -32,6 +36,10 @@ function AppShell(){
           {view === 'relatorios' && <Relatorios />}
           {view === 'usuarios' && <Usuarios />}
           {view === 'servicos' && <Servicos />}
+          {view === 'funcionarios' && <Funcionarios />}
+          {view === 'prontuarios' && <Prontuarios />}
+          {view === 'folhapagamento' && <FolhaPagamento />}
+          {view === 'meuperfil' && <PerfilFuncionario />}
         </div>
       </main>
     </div>

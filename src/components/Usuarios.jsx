@@ -8,6 +8,18 @@ export default function Usuarios(){
   const [password, setPassword] = useState('')
   const [role, setRole] = useState('recepcao')
 
+  const roleLabels = {
+    gestor: 'Gestor',
+    recepcao: 'Recepção',
+    funcionario: 'Funcionário'
+  }
+
+  const roleBadges = {
+    gestor: 'badge-confirmed',
+    recepcao: 'badge-scheduled',
+    funcionario: 'badge-inprogress'
+  }
+
   function addUser(e){
     e.preventDefault()
     const user = { name, email, password, role }
@@ -29,8 +41,8 @@ export default function Usuarios(){
                   <div style={{ fontWeight: 600, color: '#1a1a1a' }}>{u.name}</div>
                   <div style={{ fontSize: '0.875rem', color: '#64748b' }}>{u.email}</div>
                 </div>
-                <span className={`badge ${u.role === 'gestor' ? 'badge-confirmed' : 'badge-scheduled'}`}>
-                  {u.role}
+                <span className={`badge ${roleBadges[u.role] || 'badge-scheduled'}`}>
+                  {roleLabels[u.role] || u.role}
                 </span>
               </div>
             ))}
@@ -62,11 +74,15 @@ export default function Usuarios(){
               <label>Tipo de acesso</label>
               <select value={role} onChange={e=>setRole(e.target.value)}>
                 <option value="recepcao">Recepção</option>
+                <option value="funcionario">Funcionário</option>
                 <option value="gestor">Gestor</option>
               </select>
             </div>
           </div>
-          <button type="submit" className="bg-medical-green" style={{ marginTop: '0.5rem' }}>
+          <div style={{ padding: '0.75rem', background: '#f0fdf9', borderRadius: '8px', marginBottom: '1rem', fontSize: '0.875rem', color: '#065f46' }}>
+            💡 <strong>Dica:</strong> Após criar um usuário do tipo "Funcionário", vá em <strong>Funcionários</strong> e vincule o usuário ao cadastro do funcionário para que ele tenha acesso ao seu perfil.
+          </div>
+          <button type="submit" className="bg-medical-green">
             Adicionar Usuário
           </button>
         </form>
