@@ -1,297 +1,255 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useAppState } from '../state.jsx'
 
-export default function Pacientes(){
+export default function Pacientes() {
   const api = useAppState()
-  const [mode, setMode] = useState('list') // 'list' | 'form' | 'addService'
+
+  // --- 1. HOOKS (Sempre no topo, fora de qualquer IF) ---
+  const [mode, setMode] = useState('list')
   const [editing, setEditing] = useState(null)
   const [expanded, setExpanded] = useState(null)
   const [selectedPatient, setSelectedPatient] = useState(null)
   const [serviceValue, setServiceValue] = useState('')
 
+  // Estados do formulário movidos para o topo para evitar o erro de Render
+  const [localBirth, setLocalBirth] = useState('')
+  const [localMethod, setLocalMethod] = useState('Particular')
+
   const services = api.getServices ? api.getServices() : []
-  const employees = api.state.employees || []
+  const patients = api.state.patients ?? []
+  const employees = api.state.employees ?? []
 
-  // Filtrar apenas funcionários que atendem pacientes (excluir recepção, administrativo)
-  const clinicalEmployees = employees.filter(e =>
-    ['fisioterapeuta', 'medico', 'terapeuta', 'psicologo', 'enfermeiro', 'outro'].includes(e.role)
-  )
-
-  function openForm(patient){ setEditing(patient || null); setMode('form') }
-  function closeForm(){ setMode('list'); setEditing(null) }
-
-  function openAddService(patient){
-    setSelectedPatient(patient)
-    setServiceValue('')
-    setMode('addService')
-  }
-  function closeAddService(){ setMode('list'); setSelectedPatient(null); setServiceValue('') }
-
-  // Função para vincular paciente ao funcionário
-  function linkPatientToEmployee(patientId, employeeId){
-    if (!employeeId) return
-    const emp = employees.find(e => e.id === employeeId)
-    if (!emp) return
-    const currentPatients = emp.patients || []
-    if (currentPatients.includes(patientId)) return
-    api.updateEmployee(employeeId, { patients: [...currentPatients, patientId] })
+  // --- 2. FUNÇÕES DE NAVEGAÇÃO ---
+  function openForm(patient) {
+    setEditing(patient ?? null)
+    setLocalBirth(patient?.birthDate ?? '')
+    setLocalMethod(patient?.paymentMethod ?? 'Particular')
+    setMode('form')
   }
 
-  // Função para desvincular paciente do funcionário
-  function unlinkPatientFromEmployee(patientId, employeeId){
-    const emp = employees.find(e => e.id === employeeId)
-    if (!emp) return
-    const currentPatients = emp.patients || []
-    api.updateEmployee(employeeId, { patients: currentPatients.filter(id => id !== patientId) })
+  function closeForm() {
+    setMode('list')
+    setEditing(null)
+    setLocalBirth('')
+    setLocalMethod('Particular')
   }
 
-  // Encontrar funcionários vinculados a um paciente
-  function getLinkedEmployees(patientId){
-    return employees.filter(e => (e.patients || []).includes(patientId))
+  // --- 3. LÓGICA DE CÁLCULO DE IDADE ---
+  const getAge = (dateString) => {
+    if (!dateString) return null
+    const today = new Date()
+    const birthDate = new Date(dateString)
+    let age = today.getFullYear() - birthDate.getFullYear()
+    const m = today.getMonth() - birthDate.getMonth()
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+      age--
+    }
+    return age
   }
 
-  function handleSubmit(e){
+  const currentAge = getAge(localBirth)
+
+  // --- 4. PERSISTÊNCIA DE DADOS ---
+  function handleSubmit(e) {
     e.preventDefault()
     const fd = new FormData(e.target)
-    const assignedEmployeeId = fd.get('assignedEmployee')
+
     const data = {
-      fullName: fd.get('fullName')?.trim(),
-      phone: fd.get('phone')?.trim(),
-      email: fd.get('email')?.trim(),
-      notes: fd.get('notes')?.trim()
+      fullName: fd.get('fullName')?.trim() ?? '',
+      cpf: fd.get('cpf')?.trim() ?? '',
+      birthDate: localBirth,
+      paymentMethod: localMethod,
+      healthPlan: fd.get('healthPlan')?.trim() ?? '',
+      healthPlanNumber: fd.get('healthPlanNumber')?.trim() ?? '',
+      healthPlanDetails: fd.get('healthPlanDetails')?.trim() ?? '',
+      authNumber: fd.get('authNumber')?.trim() ?? '', // Número da guia
+      parentName: fd.get('parentName')?.trim() ?? '',
+      parentCpf: fd.get('parentCpf')?.trim() ?? '',
+      childContact: fd.get('childContact')?.trim() ?? '',
+      preferredPayment: fd.get('preferredPayment') ?? '',
+      phone: fd.get('phone')?.trim() ?? '',
+      email: fd.get('email')?.trim() ?? '',
+      notes: fd.get('notes')?.trim() ?? '',
+      updatedAt: new Date().toISOString()
     }
+
     if (editing) {
       api.updatePatient(editing.id, data)
-      // Se selecionou um funcionário, vincular
-      if (assignedEmployeeId) {
-        linkPatientToEmployee(editing.id, assignedEmployeeId)
-      }
     } else {
       const id = `p_${Date.now()}`
-      const now = new Date().toISOString()
-      api.addPatient({ id, createdAt: now, updatedAt: now, ...data })
-      // Se selecionou um funcionário, vincular o novo paciente
-      if (assignedEmployeeId) {
-        // Precisamos aguardar o estado atualizar, então usamos setTimeout
-        setTimeout(() => {
-          linkPatientToEmployee(id, assignedEmployeeId)
-        }, 100)
-      }
+      api.addPatient({
+        id,
+        createdAt: new Date().toISOString(),
+        ...data
+      })
     }
     closeForm()
   }
 
-  function onServiceChange(e){
-    const svcName = e.target.value
-    const svc = services.find(s => s.name === svcName)
-    if (svc) setServiceValue(svc.price.toString())
-  }
-
-  function handleAddService(e){
+  function handleAddService(e) {
     e.preventDefault()
+    if (!selectedPatient) return
     const fd = new FormData(e.target)
-    const data = {
+    api.addAppointment({
       id: `a_${Date.now()}`,
       patientId: selectedPatient.id,
       date: fd.get('date'),
       time: fd.get('time'),
       service: fd.get('service'),
-      value: Number(fd.get('value')) || 0,
+      value: Number(fd.get('value')) ?? 0,
       status: 'completed',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    }
-    api.addAppointment(data)
-    closeAddService()
+      createdAt: new Date().toISOString()
+    })
+    setMode('list')
+    setSelectedPatient(null)
   }
 
-  // Tela de adicionar serviço ao paciente
-  if (mode === 'addService' && selectedPatient){
-    const today = new Date().toISOString().slice(0,10)
-    const now = new Date().toTimeString().slice(0,5)
+  // --- 5. RENDERIZAÇÃO CONDICIONAL (TELAS) ---
+
+  if (mode === 'addService' && selectedPatient) {
     return (
-      <div>
-        <h2 className="page-title">Adicionar Serviço</h2>
-        <div className="card" style={{ marginBottom: '1.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
-            <div style={{ width: '50px', height: '50px', borderRadius: '50%', background: 'linear-gradient(135deg, #0d5c4a 0%, #0a4a3c 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold', fontSize: '1.25rem' }}>
-              {selectedPatient.fullName.charAt(0).toUpperCase()}
-            </div>
-            <div>
-              <div style={{ fontWeight: 600, fontSize: '1.1rem', color: '#1a1a1a' }}>{selectedPatient.fullName}</div>
-              <div style={{ fontSize: '0.875rem', color: '#64748b' }}>{selectedPatient.phone} • {selectedPatient.email}</div>
-            </div>
+        <div className="animate-in">
+          <h2 className="page-title">Registrar Atendimento</h2>
+          <div className="card">
+            <form onSubmit={handleAddService}>
+              <div className="grid-2">
+                <div className="form-group">
+                  <label>Serviço</label>
+                  <select name="service" required onChange={(e) => {
+                    const s = services.find(sv => sv.name === e.target.value)
+                    if (s) setServiceValue(s.price.toString())
+                  }}>
+                    <option value="">Selecione...</option>
+                    {services.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>Valor (R$)</label>
+                  <input name="value" type="number" step="0.01" value={serviceValue} onChange={e => setServiceValue(e.target.value)} required />
+                </div>
+              </div>
+              <div className="grid-2">
+                <input name="date" type="date" defaultValue={new Date().toISOString().split('T')[0]} required />
+                <input name="time" type="time" defaultValue={new Date().toTimeString().slice(0, 5)} required />
+              </div>
+              <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
+                <button type="submit" className="bg-medical-green">Confirmar</button>
+                <button type="button" onClick={() => setMode('list')}>Cancelar</button>
+              </div>
+            </form>
           </div>
         </div>
-
-        <div className="card">
-          <h3 style={{ marginBottom: '1rem', color: '#0d3d32' }}>Novo Serviço Realizado</h3>
-          <form onSubmit={handleAddService}>
-            <div className="grid-2">
-              <div className="form-group">
-                <label>Data</label>
-                <input name="date" type="date" defaultValue={today} required />
-              </div>
-              <div className="form-group">
-                <label>Horário</label>
-                <input name="time" type="time" defaultValue={now} required />
-              </div>
-            </div>
-            <div className="grid-2">
-              <div className="form-group">
-                <label>Serviço</label>
-                <select name="service" onChange={onServiceChange} required>
-                  <option value="">Selecione um serviço...</option>
-                  {services.map(s => <option key={s.id} value={s.name}>{s.name} — R$ {s.price.toFixed(2)}</option>)}
-                </select>
-              </div>
-              <div className="form-group">
-                <label>Valor (R$)</label>
-                <input name="value" type="number" step="0.01" value={serviceValue} onChange={e => setServiceValue(e.target.value)} placeholder="0.00" required />
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
-              <button type="submit" className="bg-medical-green">Registrar Serviço</button>
-              <button type="button" onClick={closeAddService} style={{ background: 'transparent', border: '2px solid #64748b', color: '#64748b' }}>Cancelar</button>
-            </div>
-          </form>
-        </div>
-      </div>
     )
   }
 
-  // Tela de cadastro/edição de paciente
-  if (mode === 'form'){
-    const p = editing || {}
+  if (mode === 'form') {
+    const p = editing ?? {}
     return (
-      <div>
-        <h2 className="page-title">{editing ? 'Editar Paciente' : 'Novo Paciente'}</h2>
-        <div className="card">
-          <form onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label>Nome completo</label>
-              <input name="fullName" required defaultValue={p.fullName||''} placeholder="Nome do paciente" />
-            </div>
-            <div className="grid-2">
-              <div className="form-group">
-                <label>Telefone</label>
-                <input name="phone" required defaultValue={p.phone||''} placeholder="(00) 00000-0000" />
-              </div>
-              <div className="form-group">
-                <label>Email</label>
-                <input name="email" type="email" defaultValue={p.email||''} placeholder="email@exemplo.com" />
-              </div>
-            </div>
-            <div className="form-group">
-              <label>Observações</label>
-              <textarea name="notes" defaultValue={p.notes||''} rows="3" placeholder="Anotações sobre o paciente..."></textarea>
-            </div>
-            <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
-              <button type="submit" className="bg-medical-green">Salvar Paciente</button>
-              <button type="button" onClick={closeForm} style={{ background: 'transparent', border: '2px solid #64748b', color: '#64748b' }}>Cancelar</button>
-            </div>
-          </form>
-        </div>
-      </div>
-    )
-  }
-
-  // Lista de pacientes
-  return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-        <h2 className="page-title" style={{ margin: 0 }}>Pacientes</h2>
-        <button onClick={() => openForm(null)} className="bg-medical-green">+ Novo Paciente</button>
-      </div>
-
-      {api.state.patients.length ? api.state.patients.map(p => {
-        const patientAppts = api.state.appointments.filter(a => a.patientId === p.id)
-        const total = patientAppts.reduce((s,a) => s + (a.value||0), 0)
-        const linkedEmps = getLinkedEmployees(p.id)
-
-        return (
-          <div key={p.id} className="card">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                <div style={{ width: '45px', height: '45px', borderRadius: '50%', background: 'linear-gradient(135deg, #0d5c4a 0%, #0a4a3c 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold', fontSize: '1.1rem' }}>
-                  {p.fullName.charAt(0).toUpperCase()}
+        <div className="animate-in">
+          <h2 className="page-title">{editing ? 'Editar Cadastro' : 'Novo Paciente'}</h2>
+          <div className="card">
+            <form onSubmit={handleSubmit}>
+              <div className="grid-2">
+                <div className="form-group">
+                  <label>Nome Completo *</label>
+                  <input name="fullName" required defaultValue={p.fullName} />
                 </div>
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: '1.1rem', color: '#1a1a1a' }}>{p.fullName}</div>
-                  <div style={{ fontSize: '0.875rem', color: '#64748b', marginTop: '0.25rem' }}>{p.phone} • {p.email}</div>
-                  {linkedEmps.length > 0 && (
-                    <div style={{ fontSize: '0.75rem', color: '#065f46', marginTop: '0.25rem' }}>
-                      👨‍⚕️ {linkedEmps.map(e => e.name).join(', ')}
-                    </div>
-                  )}
+                <div className="form-group">
+                  <label>CPF *</label>
+                  <input name="cpf" required defaultValue={p.cpf} />
                 </div>
               </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontWeight: 700, color: '#0d5c4a', fontSize: '1.1rem' }}>R$ {total.toFixed(2)}</div>
-                <div style={{ fontSize: '0.75rem', color: '#64748b' }}>total gasto</div>
+
+              <div className="grid-2">
+                <div className="form-group">
+                  <label>Data de Nascimento *</label>
+                  <input type="date" required value={localBirth} onChange={e => setLocalBirth(e.target.value)} />
+                </div>
+                <div className="form-group">
+                  <label>Plano / Particular *</label>
+                  <select value={localMethod} onChange={e => setLocalMethod(e.target.value)}>
+                    <option value="Particular">Particular</option>
+                    <option value="Convênio">Convênio</option>
+                  </select>
+                </div>
               </div>
-            </div>
 
-            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', flexWrap: 'wrap' }}>
-              <button
-                onClick={() => openAddService(p)}
-                className="bg-medical-green"
-                style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}
-              >
-                + Adicionar Serviço
-              </button>
-              <button
-                onClick={() => setExpanded(expanded === p.id ? null : p.id)}
-                style={{ background: 'transparent', border: '1px solid #e2e8f0', color: '#64748b', padding: '0.5rem 1rem', fontSize: '0.875rem' }}
-              >
-                {expanded === p.id ? 'Ocultar histórico' : 'Ver histórico'} ({patientAppts.length})
-              </button>
-              <button onClick={() => openForm(p)} style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}>Editar</button>
-              <button
-                onClick={() => { if(confirm('Confirma excluir este paciente?')) api.removePatient(p.id) }}
-                className="btn-danger"
-                style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}
-              >
-                Excluir
-              </button>
-            </div>
+              {/* Campos de Convênio */}
+              {localMethod === 'Convênio' && (
+                  <div className="grid-2" style={{ background: '#f1f5f9', padding: '1rem', borderRadius: '8px', marginBottom: '1rem' }}>
+                    <input name="healthPlan" placeholder="Nome do Plano" defaultValue={p.healthPlan} required />
+                    <input name="healthPlanNumber" placeholder="Nº Carteirinha" defaultValue={p.healthPlanNumber} required />
+                    <input name="authNumber" placeholder="Nº Guia/Autorização" defaultValue={p.authNumber} required />
+                  </div>
+              )}
 
-            {expanded === p.id && (
-              <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #f1f5f9' }}>
-                <div style={{ fontWeight: 600, marginBottom: '0.75rem', color: '#374151' }}>Histórico de Serviços</div>
-                {patientAppts.length ? (
-                  <div>
-                    {patientAppts.map(a => (
-                      <div key={a.id} className="list-item" style={{ padding: '0.75rem 0' }}>
-                        <div>
-                          <span style={{ color: '#1a1a1a', fontWeight: 500 }}>{a.date} às {a.time}</span>
-                          <span style={{ color: '#64748b', marginLeft: '0.5rem' }}>— {a.service}</span>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                          <span style={{ fontWeight: 600, color: '#0d5c4a' }}>R$ {(a.value||0).toFixed(2)}</span>
-                          <button
-                            onClick={() => { if(confirm('Remover este serviço?')) api.removeAppointment(a.id) }}
-                            style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', background: '#fee2e2', color: '#991b1b', border: 'none' }}
-                          >
-                            Remover
-                          </button>
-                        </div>
-                      </div>
+              {/* Validação de Idade */}
+              {currentAge !== null && currentAge < 18 && (
+                  <div className="grid-2" style={{ background: '#fffbeb', padding: '1rem', borderRadius: '8px', marginBottom: '1rem' }}>
+                    <input name="parentName" placeholder="Nome do Responsável" defaultValue={p.parentName} required />
+                    <input name="parentCpf" placeholder="CPF do Responsável" defaultValue={p.parentCpf} required />
+                  </div>
+              )}
+
+              {currentAge >= 60 && (
+                  <div style={{ background: '#f0fdf4', padding: '1rem', borderRadius: '8px', marginBottom: '1rem' }}>
+                    <input name="childContact" placeholder="Contato do Filho(a) / Emergência" defaultValue={p.childContact} required />
+                  </div>
+              )}
+
+              {localMethod === 'Particular' && (
+                <div className="form-group">
+                  <label>Forma de Pagamento Preferencial</label>
+                  <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
+                    {['PIX', 'Crédito', 'Débito', 'Dinheiro'].map(m => (
+                        <label key={m}><input type="radio" name="preferredPayment" value={m} defaultChecked={p.preferredPayment === m} /> {m}</label>
                     ))}
                   </div>
-                ) : (
-                  <div style={{ color: '#64748b', padding: '0.5rem 0' }}>Nenhum serviço registrado para este paciente</div>
-                )}
+                </div>
+              )}
+
+              <div className="grid-2" style={{ marginTop: '1rem' }}>
+                <input name="phone" placeholder="Telefone" required defaultValue={p.phone} />
+                <input name="email" placeholder="Email" defaultValue={p.email} />
               </div>
-            )}
+
+              <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem' }}>
+                <button type="submit" className="bg-medical-green">Salvar Cadastro</button>
+                <button type="button" onClick={closeForm}>Voltar</button>
+              </div>
+            </form>
           </div>
-        )
-      }) : (
-        <div className="card" style={{ color: '#64748b', textAlign: 'center', padding: '3rem' }}>
-          <div style={{ fontSize: '1.1rem', marginBottom: '0.5rem' }}>Nenhum paciente cadastrado</div>
-          <div style={{ fontSize: '0.875rem' }}>Clique em "Novo Paciente" para começar</div>
         </div>
-      )}
-    </div>
+    )
+  }
+
+  // --- 6. TELA DE LISTAGEM ---
+  return (
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2rem' }}>
+          <h2 className="page-title">Pacientes</h2>
+          <button onClick={() => openForm(null)} className="bg-medical-green">+ Novo Paciente</button>
+        </div>
+
+        {patients.length === 0 ? (
+            <div className="card" style={{ textAlign: 'center', color: '#64748b' }}>Nenhum paciente cadastrado.</div>
+        ) : (
+            patients.map(p => (
+                <div key={p.id} className="card" style={{ marginBottom: '1rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: '1.1rem' }}>{p.fullName}</div>
+                      <div style={{ fontSize: '0.85rem', color: '#64748b' }}>{p.cpf} | {p.paymentMethod}</div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button onClick={() => { setSelectedPatient(p); setMode('addService') }} className="btn-small bg-medical-green">Atender</button>
+                      <button onClick={() => openForm(p)} className="btn-small">Editar</button>
+                      <button onClick={() => api.removePatient(p.id)} className="btn-small btn-danger">Excluir</button>
+                    </div>
+                  </div>
+                </div>
+            ))
+        )}
+      </div>
   )
 }
