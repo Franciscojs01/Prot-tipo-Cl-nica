@@ -5,7 +5,10 @@ const STORAGE_KEYS = {
   APPOINTMENTS: 'espacoReabilita_appointments',
   SETTINGS: 'espacoReabilita_settings',
   USERS: 'espacoReabilita_users',
-  SERVICES: 'espacoReabilita_services'
+  SERVICES: 'espacoReabilita_services',
+  EMPLOYEES: 'espacoReabilita_employees',
+  MEDICAL_RECORDS: 'espacoReabilita_medicalRecords',
+  PAYROLL: 'espacoReabilita_payroll'
 }
 
 const defaultState = {
@@ -15,6 +18,9 @@ const defaultState = {
   patients: [],
   appointments: [],
   services: [],
+  employees: [],
+  medicalRecords: [],
+  payroll: [],
   settings: { lastView: 'agenda' }
 }
 
@@ -50,6 +56,24 @@ function reducer(state, action){
       return { ...state, services: [...state.services, action.service] }
     case 'setServices':
       return { ...state, services: action.services }
+    case 'addEmployee':
+      return { ...state, employees: [...(state.employees || []), action.employee] }
+    case 'updateEmployee':
+      return { ...state, employees: (state.employees || []).map(e => e.id === action.id ? { ...e, ...action.changes } : e) }
+    case 'removeEmployee':
+      return { ...state, employees: (state.employees || []).filter(e => e.id !== action.id), appointments: (state.appointments || []).map(a => a.employeeId === action.id ? { ...a, employeeId: null } : a) }
+    case 'addMedicalRecord':
+      return { ...state, medicalRecords: [...(state.medicalRecords || []), action.record] }
+    case 'updateMedicalRecord':
+      return { ...state, medicalRecords: (state.medicalRecords || []).map(m => m.id === action.id ? { ...m, ...action.changes } : m) }
+    case 'removeMedicalRecord':
+      return { ...state, medicalRecords: (state.medicalRecords || []).filter(m => m.id !== action.id) }
+    case 'addPayroll':
+      return { ...state, payroll: [...(state.payroll || []), action.entry] }
+    case 'updatePayroll':
+      return { ...state, payroll: (state.payroll || []).map(p => p.id === action.id ? { ...p, ...action.changes } : p) }
+    case 'removePayroll':
+      return { ...state, payroll: (state.payroll || []).filter(p => p.id !== action.id) }
     default:
       return state
   }
@@ -67,6 +91,9 @@ export default function StateProvider({ children }){
     const settings = load(STORAGE_KEYS.SETTINGS, { lastView: 'agenda' })
     const users = load(STORAGE_KEYS.USERS, [])
     const services = load(STORAGE_KEYS.SERVICES, [])
+    const employees = load(STORAGE_KEYS.EMPLOYEES, [])
+    const medicalRecords = load(STORAGE_KEYS.MEDICAL_RECORDS, [])
+    const payroll = load(STORAGE_KEYS.PAYROLL, [])
 
     // Seed default services if none
     const defaultServices = [
@@ -83,10 +110,10 @@ export default function StateProvider({ children }){
       if ((!patients || patients.length === 0) && (!appointments || appointments.length === 0)) {
         const samplePatient = { id: 'p_sample', fullName: 'João Silva', phone: '11999990000', email: 'joao@example.com', notes: 'Paciente demo', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
         const sampleAppointment = { id: 'a_sample', patientId: 'p_sample', date: new Date().toISOString().slice(0,10), time: '10:00', service: svc[0].name, value: svc[0].price, status: 'scheduled', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
-        dispatch({ type: 'init', payload: { patients: [samplePatient], appointments: [sampleAppointment], settings, users: [admin], services: svc, currentUser: admin, userRole: admin.role } })
+        dispatch({ type: 'init', payload: { patients: [samplePatient], appointments: [sampleAppointment], settings, users: [admin], services: svc, employees, medicalRecords, payroll, currentUser: admin, userRole: admin.role } })
         return
       }
-      dispatch({ type: 'init', payload: { patients, appointments, settings, users: [admin], services: svc, currentUser: admin, userRole: admin.role } })
+      dispatch({ type: 'init', payload: { patients, appointments, settings, users: [admin], services: svc, employees, medicalRecords, payroll, currentUser: admin, userRole: admin.role } })
       return
     }
 
@@ -96,11 +123,11 @@ export default function StateProvider({ children }){
     if ((patients || []).length === 0 && (appointments || []).length === 0) {
       const samplePatient = { id: 'p_sample', fullName: 'João Silva', phone: '11999990000', email: 'joao@example.com', notes: 'Paciente demo', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
       const sampleAppointment = { id: 'a_sample', patientId: 'p_sample', date: new Date().toISOString().slice(0,10), time: '10:00', service: svc[0].name, value: svc[0].price, status: 'scheduled', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
-      dispatch({ type: 'init', payload: { patients: [samplePatient], appointments: [sampleAppointment], settings, users, services: svc } })
+      dispatch({ type: 'init', payload: { patients: [samplePatient], appointments: [sampleAppointment], settings, users, services: svc, employees, medicalRecords, payroll } })
       return
     }
 
-    dispatch({ type: 'init', payload: { patients, appointments, settings, users, services: svc } })
+    dispatch({ type: 'init', payload: { patients, appointments, settings, users, services: svc, employees, medicalRecords, payroll } })
   }, [])
 
   // persist changes

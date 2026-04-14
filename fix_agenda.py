@@ -1,4 +1,6 @@
-import React, { useState } from 'react'
+import re
+with open('src/components/Agenda.jsx', 'w') as f:
+    f.write('''import React, { useState } from 'react'
 import { useAppState } from '../state.jsx'
 export default function Agenda(){
   const api = useAppState()
@@ -268,3 +270,4 @@ export default function Agenda(){
     </div>
   )
 }
+''')

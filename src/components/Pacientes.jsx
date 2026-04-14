@@ -93,10 +93,11 @@ export default function Pacientes() {
     api.addAppointment({
       id: `a_${Date.now()}`,
       patientId: selectedPatient.id,
+      employeeId: fd.get('employeeId') || null,
       date: fd.get('date'),
       time: fd.get('time'),
       service: fd.get('service'),
-      value: Number(fd.get('value')) ?? 0,
+      value: Number(fd.get('value')) || 0,
       status: 'completed',
       createdAt: new Date().toISOString()
     })
@@ -112,6 +113,13 @@ export default function Pacientes() {
           <h2 className="page-title">Registrar Atendimento</h2>
           <div className="card">
             <form onSubmit={handleAddService}>
+              <div className="form-group" style={{ marginBottom: '1rem' }}>
+                <label>Profissional</label>
+                <select name="employeeId" required>
+                  <option value="">Selecione...</option>
+                  {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                </select>
+              </div>
               <div className="grid-2">
                 <div className="form-group">
                   <label>Serviço</label>

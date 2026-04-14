@@ -39,13 +39,10 @@ export default function Sidebar({ currentView, onNavigate }){
               📊 Dashboard Financeiro
             </button>
             <button onClick={() => onNavigate('agenda')} className={currentView === 'agenda' ? 'active' : ''}>
-              📅 Agenda
+              📅 Agenda Global
             </button>
             <button onClick={() => onNavigate('pacientes')} className={currentView === 'pacientes' ? 'active' : ''}>
               👥 Pacientes
-            </button>
-            <button onClick={() => onNavigate('prontuarios')} className={currentView === 'prontuarios' ? 'active' : ''}>
-              📋 Prontuários
             </button>
             <button onClick={() => onNavigate('faturamento')} className={currentView === 'faturamento' ? 'active' : ''}>
               💰 Faturamento
@@ -76,8 +73,8 @@ export default function Sidebar({ currentView, onNavigate }){
             <button onClick={() => onNavigate('pacientes')} className={currentView === 'pacientes' ? 'active' : ''}>
               👥 Cadastro de Pacientes
             </button>
-            <button onClick={() => onNavigate('prontuarios')} className={currentView === 'prontuarios' ? 'active' : ''}>
-              📋 Prontuários
+            <button onClick={() => onNavigate('servicos')} className={currentView === 'servicos' ? 'active' : ''}>
+              🏷️ Tabela de Serviços
             </button>
             <button onClick={() => onNavigate('meuperfil')} className={currentView === 'meuperfil' ? 'active' : ''}>
               👤 Meu Perfil
@@ -87,6 +84,9 @@ export default function Sidebar({ currentView, onNavigate }){
 
         {role === 'funcionario' && (
           <>
+            <button onClick={() => onNavigate('agenda')} className={currentView === 'agenda' ? 'active' : ''}>
+              📅 Minha Agenda
+            </button>
             <button onClick={() => onNavigate('meuperfil')} className={currentView === 'meuperfil' ? 'active' : ''}>
               👤 Meu Perfil
             </button>
