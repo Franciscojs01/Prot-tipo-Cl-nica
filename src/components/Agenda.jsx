@@ -1,5 +1,12 @@
 import React, { useState } from 'react'
 import { useAppState } from '../state.jsx'
+import AgendaCalendar from './AgendaCalendar.jsx'
+import AgendaMonthCalendar from './AgendaMonthCalendar.jsx'
+
+const MONTHS = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
+const currentYearObj = new Date().getFullYear()
+const YEARS = Array.from({length: 11}, (_, i) => currentYearObj - 5 + i)
+
 export default function Agenda(){
   const api = useAppState()
   const [mode, setMode] = useState('list') // 'list' | 'form'
@@ -44,6 +51,31 @@ export default function Agenda(){
     if (a.date !== b.date) return a.date.localeCompare(b.date)
     return a.time.localeCompare(b.time)
   })
+
+  function handlePrevMonth() {
+    const d = new Date(selectedDate + 'T12:00:00')
+    d.setMonth(d.getMonth() - 1)
+    setSelectedDate(d.toISOString().slice(0, 10))
+  }
+  
+  function handleNextMonth() {
+    const d = new Date(selectedDate + 'T12:00:00')
+    d.setMonth(d.getMonth() + 1)
+    setSelectedDate(d.toISOString().slice(0, 10))
+  }
+  
+  function handleMonthSelect(e) {
+    const d = new Date(selectedDate + 'T12:00:00')
+    d.setMonth(parseInt(e.target.value))
+    setSelectedDate(d.toISOString().slice(0, 10))
+  }
+  
+  function handleYearSelect(e) {
+    const d = new Date(selectedDate + 'T12:00:00')
+    d.setFullYear(parseInt(e.target.value))
+    setSelectedDate(d.toISOString().slice(0, 10))
+  }
+
   function openForm(){ setMode('form'); setServiceValue('') }
   function closeForm(){ setMode('list'); setServiceValue('') }
   function onServiceChange(e){
@@ -190,15 +222,34 @@ export default function Agenda(){
         <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
           <div style={{ display: 'flex', border: '1px solid #cbd5e1', borderRadius: '8px', overflow: 'hidden' }}>
             <button onClick={() => setViewTab('dia')} style={{ borderRadius: 0, border: 'none', background: viewTab === 'dia' ? '#e2e8f0' : 'transparent', color: viewTab === 'dia' ? '#0f172a' : '#64748b', padding: '0.5rem 1rem' }}>Dia</button>
-            <button onClick={() => setViewTab('semana')} style={{ borderRadius: 0, border: 'none', borderLeft: '1px solid #cbd5e1', borderRight: '1px solid #cbd5e1', background: viewTab === 'semana' ? '#e2e8f0' : 'transparent', color: viewTab === 'semana' ? '#0f172a' : '#64748b', padding: '0.5rem 1rem' }}>Semana</button>
-            <button onClick={() => setViewTab('mes')} style={{ borderRadius: 0, border: 'none', background: viewTab === 'mes' ? '#e2e8f0' : 'transparent', color: viewTab === 'mes' ? '#0f172a' : '#64748b', padding: '0.5rem 1rem' }}>Mês</button>
+            <button onClick={() => setViewTab('semana')} style={{ borderRadius: 0, border: 'none', borderLeft: '1px solid #cbd5e1', borderRight: '1px solid #cbd5e1', background: viewTab === 'semana' ? '#e2e8f0' : 'transparent', color: viewTab === 'semana' ? '#0f172a' : '#64748b', padding: '0.5rem 1rem' }}>Semana (Grid)</button>
+            <button onClick={() => setViewTab('mes')} style={{ borderRadius: 0, border: 'none', background: viewTab === 'mes' ? '#e2e8f0' : 'transparent', color: viewTab === 'mes' ? '#0f172a' : '#64748b', padding: '0.5rem 1rem' }}>Mês (Calendário)</button>
           </div>
-          <div className="form-group" style={{ margin: 0, minWidth: '150px' }}>
-            <input type={viewTab === 'mes' ? 'month' : 'date'} value={viewTab === 'mes' ? selectedDate.slice(0,7) : selectedDate} onChange={e => {
-                if(viewTab === 'mes') { setSelectedDate(e.target.value + '-01') }
-                else { setSelectedDate(e.target.value) }
-            }} style={{ padding: '0.5rem' }} />
-          </div>
+          
+          {viewTab === 'mes' ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', background: '#f8fafc', padding: '0.25rem 0.5rem', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
+              <button title="Mês Anterior" onClick={handlePrevMonth} style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '0.25rem 0.5rem', fontWeight: 'bold', color: '#64748b', borderRadius: '4px' }}>&lt;</button>
+              <select value={parseInt(selectedDate.slice(5,7)) - 1} onChange={handleMonthSelect} style={{ border: 'none', background: 'transparent', fontWeight: 'bold', color: '#0f172a', padding: '0.25rem', cursor: 'pointer', outline: 'none', fontSize: '1rem' }}>
+                {MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}
+              </select>
+              <select value={selectedDate.slice(0,4)} onChange={handleYearSelect} style={{ border: 'none', background: 'transparent', fontWeight: 'bold', color: '#0f172a', padding: '0.25rem', cursor: 'pointer', outline: 'none', fontSize: '1rem' }}>
+                {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+              </select>
+              <button title="Próximo Mês" onClick={handleNextMonth} style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '0.25rem 0.5rem', fontWeight: 'bold', color: '#64748b', borderRadius: '4px' }}>&gt;</button>
+            </div>
+          ) : (
+            <div className="form-group" style={{ margin: 0, minWidth: '150px' }}>
+              <input type="date" value={selectedDate} onChange={e => {
+                  const val = e.target.value;
+                  if (!val) {
+                    setSelectedDate(new Date().toISOString().slice(0, 10));
+                    return;
+                  }
+                  setSelectedDate(val)
+              }} style={{ padding: '0.5rem' }} />
+            </div>
+          )}
+
           {isGlobal && (
              <div className="form-group" style={{ margin: 0, minWidth: '200px' }}>
                 <select value={filterEmployee} onChange={e => setFilterEmployee(e.target.value)} style={{ padding: '0.5rem' }}>
@@ -211,59 +262,77 @@ export default function Agenda(){
           )}
         </div>
       </div>
-      {filteredAppointments.length ? filteredAppointments.map(a => {
-        const p = (api.state.patients || []).find(x => x.id === a.patientId) || { fullName: 'Paciente removido', healthPlan: '' }
-        const emp = employees.find(x => x.id === a.employeeId)
-        const isCancelled = a.status === 'cancelled'
-        return (
-          <div key={a.id} className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderLeft: isCancelled ? '4px solid #ef4444' : '4px solid #10b981', opacity: isCancelled ? 0.75 : 1 }}>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <span style={{ fontWeight: 700, color: isCancelled ? '#ef4444' : '#0d5c4a', fontSize: '1.1rem' }}>{a.date} às {a.time}</span>
-                {isCancelled && <span className="badge badge-cancelled" style={{ fontSize: '0.75rem' }}>Horário Vago / Cancelado</span>}
-              </div>
-              <div style={{ fontWeight: 600, color: '#1a1a1a', fontSize: '1.1rem', marginTop: '0.25rem', textDecoration: isCancelled ? 'line-through' : 'none' }}>
-                {p.fullName} {p.healthPlan && <span style={{fontSize:'0.8rem', color:'#0ea5e9'}}>[{p.healthPlan}]</span>}
-              </div>
-              <div style={{ fontSize: '0.875rem', color: '#64748b', marginTop: '0.25rem' }}>
-                {a.service || 'Sem serviço'} • R$ {(a.value || 0).toFixed(2)}
-                {isGlobal && emp && <span style={{marginLeft:'0.5rem'}}>• 👨‍⚕️ Dr(a). {emp.name}</span>}
-              </div>
-              {isCancelled && a.cancelReason && (
-                <div style={{ fontSize: '0.8rem', color: '#b91c1c', marginTop: '0.5rem', background: '#fef2f2', padding: '0.4rem', borderRadius: '4px' }}>
-                  <strong>Motivo:</strong> {a.cancelReason}
+
+      {viewTab === 'semana' ? (
+        <AgendaCalendar 
+          appointments={filteredAppointments} 
+          startOfWeek={startOfWeek} 
+          api={api} 
+          employees={employees} 
+          handleStatusChange={handleStatusChange} 
+          isGlobal={isGlobal} 
+        />
+      ) : viewTab === 'mes' ? (
+        <AgendaMonthCalendar
+          appointments={filteredAppointments}
+          selectedMonth={currentMonth}
+          api={api}
+          employees={employees}
+          handleStatusChange={handleStatusChange}
+          isGlobal={isGlobal}
+        />
+      ) : (
+        <>
+          {filteredAppointments.length ? filteredAppointments.map(a => {
+            const p = (api.state.patients || []).find(x => x.id === a.patientId) || { fullName: 'Paciente removido', healthPlan: '' }
+            const emp = employees.find(x => x.id === a.employeeId)
+            const isCancelled = a.status === 'cancelled'
+            return (
+              <div key={a.id} className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderLeft: isCancelled ? '4px solid #ef4444' : '4px solid #10b981', opacity: isCancelled ? 0.75 : 1 }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <span style={{ fontWeight: 700, color: isCancelled ? '#ef4444' : '#0d5c4a', fontSize: '1.1rem' }}>{a.date} às {a.time}</span>
+                    {isCancelled && <span className="badge badge-cancelled" style={{ fontSize: '0.75rem' }}>Horário Vago / Cancelado</span>}
+                  </div>
+                  <div style={{ fontWeight: 600, color: '#1a1a1a', fontSize: '1.1rem', marginTop: '0.25rem', textDecoration: isCancelled ? 'line-through' : 'none' }}>
+                    {p.fullName} {p.healthPlan && <span style={{fontSize:'0.8rem', color:'#0ea5e9'}}>[{p.healthPlan}]</span>}
+                  </div>
+                  <div style={{ fontSize: '0.875rem', color: '#64748b', marginTop: '0.25rem' }}>
+                    {a.service || 'Sem serviço'} • R$ {(a.value || 0).toFixed(2)}
+                    {isGlobal && emp && <span style={{marginLeft:'0.5rem'}}>• 👨‍⚕️ Dr(a). {emp.name}</span>}
+                  </div>
+                  {isCancelled && a.cancelReason && (
+                    <div style={{ fontSize: '0.8rem', color: '#b91c1c', marginTop: '0.5rem', background: '#fef2f2', padding: '0.4rem', borderRadius: '4px' }}>
+                      <strong>Motivo:</strong> {a.cancelReason}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap:'wrap' }}>
-              <select
-                value={a.status}
-                onChange={(e) => handleStatusChange(a, e.target.value)}
-                style={{ width: 'auto', minWidth: '150px' }}
-                disabled={isCancelled} // Uma vez cancelado visualmente, mantém vago. Se quiser, pode remarcar clicando em Editar (poderiamos adicionar o btn)
-              >
-                <option value="scheduled">Aguardando</option>
-                <option value="confirmed">Confirmado</option>
-                <option value="in-progress">Em Atendimento</option>
-                <option value="completed">Finalizado</option>
-                {!isCancelled && <option value="cancelled">Faltou / Desmarcar</option>}
-              </select>
-              <button
-                onClick={() => { if(confirm('Remover definitivamente este registro?')) api.removeAppointment(a.id) }}
-                className="btn-danger"
-                style={{ padding: '0.4rem 0.75rem', fontSize:'0.75rem' }}
-              >
-                Apagar
-              </button>
-            </div>
-          </div>
-        )
-      }) : (
-        <div className="card" style={{ color: '#64748b', textAlign: 'center', padding: '3rem' }}>
-          <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>📅</div>
-          <div style={{ fontSize: '1.1rem', marginBottom: '0.5rem' }}>Nenhum agendamento encontrado</div>
-          <div style={{ fontSize: '0.875rem' }}>Clique em "Novo Agendamento" para preencher a agenda.</div>
-        </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap:'wrap' }}>
+                  <select
+                    value={a.status}
+                    onChange={(e) => handleStatusChange(a, e.target.value)}
+                    style={{ width: 'auto', minWidth: '150px' }}
+                    disabled={isCancelled} // Uma vez cancelado visualmente, mantém vago. Se quiser, pode remarcar clicando em Editar (poderiamos adicionar o btn)
+                  >
+                    <option value="scheduled">Aguardando</option>
+                    <option value="confirmed">Confirmado</option>
+                    <option value="in-progress">Em Atendimento</option>
+                    <option value="completed">Finalizado</option>
+                    {!isCancelled && <option value="cancelled">Faltou / Desmarcar</option>}
+                  </select>
+                  <button
+                    onClick={() => { if(confirm('Remover definitivamente este registro?')) api.removeAppointment(a.id) }}
+                    style={{ background: 'transparent', border: '2px solid #ef4444', color: '#ef4444', padding: '0.25rem 0.5rem' }}
+                  >
+                    Excluir
+                  </button>
+                </div>
+              </div>
+            )
+          }) : (
+            <div style={{ color: '#64748b', padding: '1rem 0' }}>Nenhum agendamento encontrado para este período.</div>
+          )}
+        </>
       )}
     </div>
   )
